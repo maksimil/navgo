@@ -61,6 +61,10 @@ func (handle *THandle) PutLine(line string) {
 	fmt.Printf("\x1b7%s\x1b8", line)
 }
 
+func (handle *THandle) PutLinef(format string, a ...interface{}) {
+	handle.PutLine(fmt.Sprintf(format, a...))
+}
+
 func (handle *THandle) Clear() {
 	handle.MoveTo(0, 0)
 	fmt.Print("\x1b[0J")
@@ -69,4 +73,8 @@ func (handle *THandle) Clear() {
 func (handle *THandle) Close(exmsg string) {
 	handle.Clear()
 	fmt.Printf("%s", exmsg)
+}
+
+func (handle *THandle) CloseDirty() {
+	handle.MoveTo(0, handle.height)
 }
