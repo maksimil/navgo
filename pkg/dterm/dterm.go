@@ -2,7 +2,6 @@ package dterm
 
 import (
 	"fmt"
-	"unicode/utf8"
 )
 
 type THandle struct {
@@ -59,16 +58,15 @@ func (handle *THandle) MoveTo(x, y int) {
 }
 
 func (handle *THandle) PutLine(line string) {
-	fmt.Print(line)
-	handle.cx += utf8.RuneCountInString(line)
+	fmt.Printf("\x1b7%s\x1b8", line)
 }
 
-func (handle *THandle) PutLineRet(line string) {
-	handle.PutLine(line)
-	handle.MoveBy(-utf8.RuneCountInString(line), 0)
+func (handle *THandle) Clear() {
+	handle.MoveTo(0, 0)
+	fmt.Print("\x1b[0J")
 }
 
 func (handle *THandle) Close(exmsg string) {
-	handle.MoveTo(0, 0)
-	fmt.Printf("\x1b[0J%s", exmsg)
+	handle.Clear()
+	fmt.Printf("%s", exmsg)
 }

@@ -11,8 +11,8 @@ func main() {
 		dterm.NewTHandle()
 	defer th.Close("b msg")
 	th.MoveTo(0, 2)
-	th.PutLineRet("Hi")
+	th.PutLine("Hi")
 	th.MoveTo(0, 0)
-	th.PutLineRet("Bye")
+	th.PutLine("Bye")
 	time.Sleep(time.Second)
 }
