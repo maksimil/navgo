@@ -1,9 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"strings"
+
+	"github.com/maksimil/navgo/pkg/dterm"
 )
 
 type UIState struct {
@@ -22,17 +23,12 @@ func main() {
 		return dir
 	}()
 	pt := &PathTree{dir, PathTreeClosed, make([]PathTreePart, 0)}
-	fmt.Println(pt)
 	open(pt)
-	fmt.Println("Path:", pt.path, "\nState:", pt.state)
-	for _, v := range pt.children {
-		switch v := v.(type) {
-		case *PathLeaf:
-			fmt.Println("File: ", v.path)
-		case *PathTree:
-			fmt.Println("Folder: ", v.path)
-		}
-	}
+	open(pt.children[0].(*PathTree))
+	pt.children[0].(*PathTree).children[5].(*PathTree).state = PathTreeErr
+	th := dterm.NewTHandle()
+	drawPart(pt, &th, []int{0})
+	th.CloseDirty()
 	// // putting terminal in raw mode
 	// oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	// if err != nil {
