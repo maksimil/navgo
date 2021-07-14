@@ -14,6 +14,10 @@ type UIState struct {
 	selected []int
 }
 
+func modulo(a, b int) int {
+	return ((a % b) + b) % b
+}
+
 func main() {
 	// getting current directory
 	dir := func() string {
@@ -33,7 +37,7 @@ func main() {
 
 	// create dterm handle
 	th := dterm.NewTHandle()
-	dterm.HideCursor()
+	th.HideCursor()
 
 	closechan := make(chan string)
 	uistatechan := make(chan func(*UIState) bool, 16)
@@ -63,6 +67,17 @@ func main() {
 				}
 			// j
 			case c == 106:
+				uistatechan <- func(u *UIState) bool {
+					if len(u.selected) == 0 {
+						return false
+					} else {
+						u.selected[len(u.selected)-1] -= 1
+						u.selected[len(u.selected)-1] = modulo(u.selected[len(u.selected)-1],
+							len(
+								u.tree.Get(u.selected[:len(u.selected)-1]).(*PathTree).children))
+						return true
+					}
+				}
 			// k
 			case c == 107:
 			// l
@@ -84,11 +99,14 @@ func main() {
 		uistate := UIState{PathTree{dir, PathTreeClosed, []PathTreePart{}}, []int{}}
 		for mutator := range uistatechan {
 			if mutator(&uistate) {
+				os.Stderr.WriteString(fmt.Sprintf("%v\n", uistate.selected))
 				// drawing
-				th.Clear()
-				dterm.PutLinef("\x1b[33m%s\x1b[0m", uistate.tree.path)
-				th.MoveBy(0, 1)
-				uistate.tree.Draw(&th, uistate.selected)
+				th.Bufferize(func(handle *dterm.THandle) {
+					handle.Clear()
+					handle.PutLinef("\x1b[33m%s\x1b[0m", uistate.tree.path)
+					handle.MoveBy(0, 1)
+					uistate.tree.Draw(handle, uistate.selected)
+				})
 			}
 		}
 	}()

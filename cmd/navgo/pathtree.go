@@ -50,19 +50,19 @@ func (part *PathTree) Draw(target *dterm.THandle, highlight []int) {
 	}
 	switch part.state {
 	case PathTreeClosed:
-		dterm.PutLinef("%s", dname)
+		target.PutLinef("%s", dname)
 		target.MoveBy(0, 1)
 	case PathTreeErr:
-		dterm.PutLinef("%s \x1b[31m- Error\x1b[0m", dname)
+		target.PutLinef("%s \x1b[31m- Error\x1b[0m", dname)
 		target.MoveBy(0, 1)
 	case PathTreeOpen:
-		dterm.PutLinef("%s", dname)
+		target.PutLinef("%s", dname)
 		target.MoveBy(0, 1)
 		for i, cpart := range part.children {
 			if i+1 == len(part.children) {
-				dterm.PutLine("\u2514\u2500 ")
+				target.PutLine("\u2514\u2500 ")
 			} else {
-				dterm.PutLine("\u251C\u2500 ")
+				target.PutLine("\u251C\u2500 ")
 			}
 			target.MoveBy(3, 0)
 			x, y := target.Cpos()
@@ -75,7 +75,7 @@ func (part *PathTree) Draw(target *dterm.THandle, highlight []int) {
 			if i+1 != len(part.children) {
 				target.MoveTo(x-3, y+1)
 				for j := 0; j < y1-y-1; j++ {
-					dterm.PutLine("\u2502")
+					target.PutLine("\u2502")
 					target.MoveBy(0, 1)
 				}
 			} else {
@@ -125,7 +125,7 @@ func (part *PathLeaf) Draw(target *dterm.THandle, highlight []int) {
 	if len(highlight) == 0 {
 		dname = fmt.Sprintf("\x1b[47;30m%s\x1b[0m", dname)
 	}
-	dterm.PutLine(dname)
+	target.PutLine(dname)
 	target.MoveBy(0, 1)
 }
 

@@ -2,12 +2,15 @@ package dterm
 
 import (
 	"fmt"
+	"io"
+	"os"
 )
 
 type THandle struct {
 	cx     int
 	cy     int
 	height int
+	stream io.Writer
 }
 
 func (handle *THandle) Cpos() (int, int) {
@@ -15,31 +18,43 @@ func (handle *THandle) Cpos() (int, int) {
 }
 
 func NewTHandle() THandle {
-	fmt.Print("\n\x1b[0A")
-	sh := THandle{0, 0, 1}
+	return NewTHandleStreamed(os.Stdout)
+}
+
+func NewTHandleStreamed(stream io.Writer) THandle {
+	sh := THandle{0, 0, 1, stream}
+	sh.Write("\n\x1b[0A")
 	return sh
 }
 
-func moveby(x, y int) {
+func (handle *THandle) Write(s string) {
+	fmt.Fprint(handle.stream, s)
+}
+
+func (handle *THandle) Writef(format string, a ...interface{}) {
+	fmt.Fprintf(handle.stream, format, a...)
+}
+
+func (handle *THandle) moveby_raw(x, y int) {
 	if x > 0 {
-		fmt.Printf("\x1b[%dC", x)
+		handle.Writef("\x1b[%dC", x)
 	} else if x != 0 {
-		fmt.Printf("\x1b[%dD", -x)
+		handle.Writef("\x1b[%dD", -x)
 	}
 	if y > 0 {
-		fmt.Printf("\x1b[%dB", y)
+		handle.Writef("\x1b[%dB", y)
 	} else if y != 0 {
-		fmt.Printf("\x1b[%dA", -y)
+		handle.Writef("\x1b[%dA", -y)
 	}
 }
 
 func (handle *THandle) Expand(by int) {
 	// move to the end of the avaliable height
-	moveby(-handle.cx, handle.height-handle.cy)
+	handle.moveby_raw(-handle.cx, handle.height-handle.cy)
 	for i := 0; i < by; i++ {
-		fmt.Print("\n")
+		handle.Write("\n")
 	}
-	moveby(handle.cx, -(handle.height-handle.cy)-by)
+	handle.moveby_raw(handle.cx, -(handle.height-handle.cy)-by)
 	handle.height += by
 }
 
@@ -50,42 +65,42 @@ func (handle *THandle) MoveBy(x, y int) {
 	handle.cx += x
 	handle.cy += y
 
-	moveby(x, y)
+	handle.moveby_raw(x, y)
 }
 
 func (handle *THandle) MoveTo(x, y int) {
 	handle.MoveBy(x-handle.cx, y-handle.cy)
 }
 
-func PutLine(line string) {
-	fmt.Printf("\x1b7%s\x1b8", line)
+func (handle *THandle) PutLine(line string) {
+	handle.Writef("\x1b7%s\x1b8", line)
 }
 
-func PutLinef(format string, a ...interface{}) {
-	PutLine(fmt.Sprintf(format, a...))
+func (handle *THandle) PutLinef(format string, a ...interface{}) {
+	handle.PutLine(fmt.Sprintf(format, a...))
 }
 
 func (handle *THandle) Clear() {
 	handle.MoveTo(0, 0)
-	fmt.Print("\x1b[0J")
+	handle.Write("\x1b[0J")
 }
 
-func HideCursor() {
-	fmt.Print("\x1b[?25l")
+func (handle *THandle) HideCursor() {
+	handle.Write("\x1b[?25l")
 }
 
-func ShowCursor() {
-	fmt.Print("\x1b[?25h")
+func (handle *THandle) ShowCursor() {
+	handle.Write("\x1b[?25h")
 }
 
 func (handle *THandle) Close(exmsg string) {
 	handle.Clear()
-	ShowCursor()
-	fmt.Printf("%s", exmsg)
+	handle.ShowCursor()
+	handle.Writef("%s", exmsg)
 
 }
 
 func (handle *THandle) CloseDirty() {
 	handle.MoveTo(0, handle.height)
-	ShowCursor()
+	handle.ShowCursor()
 }
