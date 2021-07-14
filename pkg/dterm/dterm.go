@@ -57,12 +57,12 @@ func (handle *THandle) MoveTo(x, y int) {
 	handle.MoveBy(x-handle.cx, y-handle.cy)
 }
 
-func (handle *THandle) PutLine(line string) {
+func PutLine(line string) {
 	fmt.Printf("\x1b7%s\x1b8", line)
 }
 
-func (handle *THandle) PutLinef(format string, a ...interface{}) {
-	handle.PutLine(fmt.Sprintf(format, a...))
+func PutLinef(format string, a ...interface{}) {
+	PutLine(fmt.Sprintf(format, a...))
 }
 
 func (handle *THandle) Clear() {
@@ -70,11 +70,22 @@ func (handle *THandle) Clear() {
 	fmt.Print("\x1b[0J")
 }
 
+func HideCursor() {
+	fmt.Print("\x1b[?25l")
+}
+
+func ShowCursor() {
+	fmt.Print("\x1b[?25h")
+}
+
 func (handle *THandle) Close(exmsg string) {
 	handle.Clear()
+	ShowCursor()
 	fmt.Printf("%s", exmsg)
+
 }
 
 func (handle *THandle) CloseDirty() {
 	handle.MoveTo(0, handle.height)
+	ShowCursor()
 }

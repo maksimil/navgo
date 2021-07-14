@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
 	"github.com/maksimil/navgo/pkg/dterm"
+	"golang.org/x/term"
 )
 
 type UIState struct {
@@ -22,50 +24,65 @@ func main() {
 		dir = strings.Replace(dir, "\\", "/", -1)
 		return dir
 	}()
-	pt := &PathTree{dir, PathTreeClosed, make([]PathTreePart, 0)}
-	open(pt)
-	open(pt.children[0].(*PathTree))
-	pt.children[0].(*PathTree).children[5].(*PathTree).state = PathTreeErr
+	// putting terminal in raw mode
+	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+	if err != nil {
+		panic(err)
+	}
+	defer term.Restore(int(os.Stdin.Fd()), oldState)
+
+	// create dterm handle
 	th := dterm.NewTHandle()
-	drawPart(pt, &th, []int{0})
-	th.CloseDirty()
-	// // putting terminal in raw mode
-	// oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// defer term.Restore(int(os.Stdin.Fd()), oldState)
-	// // drawing ui
-	// th := dterm.NewTHandle()
-	// th.PutLinef("\x1b[33m%s\x1b[0m", dir)
-	// th.MoveBy(0, 1)
-	// th.PutLinef("%s", path.Base(dir))
+	dterm.HideCursor()
 
-	// closechan := make(chan string)
-	// uistatechan := make(chan func(*UIState), 16)
+	closechan := make(chan string)
+	uistatechan := make(chan func(*UIState) bool, 16)
 
-	// // raw user input goroutine
-	// go func() {
-	// 	for {
-	// 		b := make([]byte, 1)
-	// 		os.Stdin.Read(b)
-	// 		c := b[0]
-	// 		switch {
-	// 		case c == 3:
-	// 			closechan <- "\x1b[33mExit via ^C\x1b[31m"
-	// 			close(closechan)
-	// 		}
-	// 	}
-	// }()
+	uistatechan <- func(u *UIState) bool { return true }
 
-	// // ui drawing goroutine
-	// go func() {
-	// 	uistate := UIState{}
-	// 	for mutator := range uistatechan {
-	// 		mutator(&uistate)
-	// 		os.Stderr.WriteString(fmt.Sprintf("%v\n", uistate))
-	// 	}
-	// }()
+	// raw user input goroutine
+	go func() {
+		for {
+			b := make([]byte, 1)
+			os.Stdin.Read(b)
+			c := b[0]
+			os.Stderr.WriteString(fmt.Sprintln(c))
+			switch {
+			case c == 3:
+				closechan <- "\x1b[33mExit via ^C\x1b[31m"
+				close(closechan)
+			// h
+			case c == 104:
+			// j
+			case c == 106:
+			// k
+			case c == 107:
+			// l
+			case c == 108:
+				uistatechan <- func(u *UIState) bool {
+					if u.tree.Get(u.selected).Open() {
+						u.selected = append(u.selected, 0)
+						return true
+					}
+					return false
+				}
+			}
+		}
+	}()
 
-	// th.Close(<-closechan)
+	// ui drawing goroutine
+	go func() {
+		uistate := UIState{PathTree{dir, PathTreeClosed, []PathTreePart{}}, []int{}}
+		for mutator := range uistatechan {
+			if mutator(&uistate) {
+				// drawing
+				th.Clear()
+				dterm.PutLinef("\x1b[33m%s\x1b[0m", uistate.tree.path)
+				th.MoveBy(0, 1)
+				uistate.tree.Draw(&th, uistate.selected)
+			}
+		}
+	}()
+
+	th.Close(<-closechan)
 }
