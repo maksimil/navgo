@@ -53,6 +53,14 @@ func main() {
 				close(closechan)
 			// h
 			case c == 104:
+				uistatechan <- func(u *UIState) bool {
+					if len(u.selected) > 0 {
+						u.selected = u.selected[:len(u.selected)-1]
+						return true
+					} else {
+						return false
+					}
+				}
 			// j
 			case c == 106:
 			// k
@@ -63,8 +71,9 @@ func main() {
 					if u.tree.Get(u.selected).Open() {
 						u.selected = append(u.selected, 0)
 						return true
+					} else {
+						return false
 					}
-					return false
 				}
 			}
 		}
