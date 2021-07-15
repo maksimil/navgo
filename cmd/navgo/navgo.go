@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"strings"
 
@@ -39,7 +38,7 @@ func main() {
 	th := dterm.NewTHandle()
 	th.HideCursor()
 
-	closechan := make(chan string)
+	closechan := make(chan func())
 	uistatechan := make(chan func(*UIState) bool, 16)
 
 	uistatechan <- func(u *UIState) bool { return true }
@@ -50,10 +49,11 @@ func main() {
 			b := make([]byte, 1)
 			os.Stdin.Read(b)
 			c := b[0]
-			os.Stderr.WriteString(fmt.Sprintln(c))
 			switch {
 			case c == 3:
-				closechan <- "\x1b[33mExit via ^C\x1b[31m"
+				closechan <- func() {
+					th.Close("\x1b[33mExit via ^C\x1b[31m")
+				}
 				close(closechan)
 			// h
 			case c == 104:
@@ -71,7 +71,7 @@ func main() {
 					if len(u.selected) == 0 {
 						return false
 					} else {
-						u.selected[len(u.selected)-1] -= 1
+						u.selected[len(u.selected)-1] += 1
 						u.selected[len(u.selected)-1] = modulo(u.selected[len(u.selected)-1],
 							len(
 								u.tree.Get(u.selected[:len(u.selected)-1]).(*PathTree).children))
@@ -80,6 +80,17 @@ func main() {
 				}
 			// k
 			case c == 107:
+				uistatechan <- func(u *UIState) bool {
+					if len(u.selected) == 0 {
+						return false
+					} else {
+						u.selected[len(u.selected)-1] -= 1
+						u.selected[len(u.selected)-1] = modulo(u.selected[len(u.selected)-1],
+							len(
+								u.tree.Get(u.selected[:len(u.selected)-1]).(*PathTree).children))
+						return true
+					}
+				}
 			// l
 			case c == 108:
 				uistatechan <- func(u *UIState) bool {
@@ -99,7 +110,6 @@ func main() {
 		uistate := UIState{PathTree{dir, PathTreeClosed, []PathTreePart{}}, []int{}}
 		for mutator := range uistatechan {
 			if mutator(&uistate) {
-				os.Stderr.WriteString(fmt.Sprintf("%v\n", uistate.selected))
 				// drawing
 				th.Bufferize(func(handle *dterm.THandle) {
 					handle.Clear()
@@ -111,5 +121,5 @@ func main() {
 		}
 	}()
 
-	th.Close(<-closechan)
+	(<-closechan)()
 }
