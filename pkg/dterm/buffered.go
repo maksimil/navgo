@@ -12,7 +12,7 @@ type Buffer struct {
 
 func NewBuffer(handle *THandle) Buffer {
 	buf := new(bytes.Buffer)
-	bufhandle := NewTHandleStreamed(buf)
+	bufhandle := NewTHandleStreamed(buf, handle.limit)
 	bufhandle.cx = handle.cx
 	bufhandle.cy = handle.cy
 	bufhandle.height = handle.height
