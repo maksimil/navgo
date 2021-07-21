@@ -22,10 +22,12 @@ func (handle *THandle) Cpos() (int, int) {
 }
 
 func limit(y int, lim int) int {
-	if y < lim {
+	if y < lim && y >= 0 {
 		return y
-	} else {
+	} else if y >= 0 {
 		return lim - 1
+	} else {
+		return 0
 	}
 }
 
@@ -95,7 +97,7 @@ func (handle *THandle) MoveTo(x, y int) {
 }
 
 func (handle *THandle) PutLine(line string) {
-	if handle.cy < handle.limit {
+	if handle.cy < handle.limit && handle.cy >= 0 {
 		handle.Writef("\x1b7%s\x1b8", line)
 	}
 }
