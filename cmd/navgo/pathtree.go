@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"sort"
 
 	"github.com/maksimil/navgo/pkg/dterm"
 )
@@ -46,7 +47,9 @@ func (part *PathTree) Get(idx []int) PathTreePart {
 func (part *PathTree) Draw(target *dterm.THandle, highlight []int) {
 	dname := path.Base(part.path)
 	if len(highlight) == 0 {
-		dname = fmt.Sprintf("\x1b[47;30m%s\x1b[0m", dname)
+		dname = fmt.Sprintf("\x1b[104;30m%s\x1b[0m", dname)
+	} else {
+		dname = fmt.Sprintf("\x1b[40;94m%s\x1b[0m", dname)
 	}
 	switch part.state {
 	case PathTreeClosed:
@@ -104,6 +107,26 @@ func (part *PathTree) Open() bool {
 				part.children[i] = &PathLeaf{path.Join(part.path, de[i].Name())}
 			}
 		}
+
+		sort.Slice(part.children, func(i, j int) bool {
+			switch ci := part.children[i].(type) {
+			case *PathLeaf:
+				switch cj := part.children[j].(type) {
+				case *PathLeaf:
+					return ci.path < cj.path
+				case *PathTree:
+					return false
+				}
+			case *PathTree:
+				switch cj := part.children[j].(type) {
+				case *PathLeaf:
+					return true
+				case *PathTree:
+					return ci.path < cj.path
+				}
+			}
+			return true
+		})
 	}
 	return true
 }
@@ -123,7 +146,7 @@ func (part *PathLeaf) Get(idx []int) PathTreePart {
 func (part *PathLeaf) Draw(target *dterm.THandle, highlight []int) {
 	dname := path.Base(part.path)
 	if len(highlight) == 0 {
-		dname = fmt.Sprintf("\x1b[47;30m%s\x1b[0m", dname)
+		dname = fmt.Sprintf("\x1b[2;47;30m%s\x1b[0m", dname)
 	}
 	target.PutLine(dname)
 	target.MoveBy(0, 1)
