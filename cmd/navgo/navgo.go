@@ -119,6 +119,11 @@ func main() {
 					u.scroll += 1
 					return true
 				}
+			// i
+			case c == 105:
+				uistatechan <- func(u *UIState) bool {
+					return u.tree.Get(u.selected).Close()
+				}
 			}
 		}
 	}()

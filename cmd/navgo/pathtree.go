@@ -20,6 +20,7 @@ type PathTreePart interface {
 	Get(idx []int) PathTreePart
 	Draw(target *dterm.THandle, highlight []int)
 	Open() bool
+	Close() bool
 }
 
 type PathLeaf struct {
@@ -131,6 +132,16 @@ func (part *PathTree) Open() bool {
 	return true
 }
 
+func (part *PathTree) Close() bool {
+	if part.state == PathTreeOpen {
+		part.state = PathTreeClosed
+		part.children = nil
+		return true
+	} else {
+		return false
+	}
+}
+
 func (part *PathLeaf) Path() string {
 	return part.path
 }
@@ -153,5 +164,9 @@ func (part *PathLeaf) Draw(target *dterm.THandle, highlight []int) {
 }
 
 func (part *PathLeaf) Open() bool {
+	return false
+}
+
+func (part *PathLeaf) Close() bool {
 	return false
 }
