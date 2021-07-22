@@ -15,20 +15,25 @@ type THandle struct {
 	stream io.Writer
 
 	limit int
+	lock  int
 }
 
 func (handle *THandle) Cpos() (int, int) {
 	return handle.cx, handle.cy
 }
 
-func limit(y int, lim int) int {
-	if y < lim && y >= 0 {
+func (handle *THandle) act(y int) int {
+	if y >= handle.lock && y < handle.limit {
 		return y
-	} else if y >= 0 {
-		return lim - 1
+	} else if y >= handle.lock {
+		return handle.limit - 1
 	} else {
-		return 0
+		return handle.lock
 	}
+}
+
+func (handle *THandle) acty() int {
+	return handle.act(handle.cy)
 }
 
 func NewTHandle() THandle {
@@ -40,7 +45,7 @@ func NewTHandle() THandle {
 }
 
 func NewTHandleStreamed(stream io.Writer, limit int) THandle {
-	sh := THandle{0, 0, 1, stream, limit}
+	sh := THandle{0, 0, 1, stream, limit, 0}
 	sh.Write("\n\x1b[0A")
 	return sh
 }
@@ -71,11 +76,11 @@ func (handle *THandle) Expand(by int) {
 		handle.Expand(handle.limit - handle.height)
 	} else {
 		// move to the end of the avaliable height
-		handle.moveby_raw(-handle.cx, handle.height-handle.cy)
+		handle.moveby_raw(-handle.cx, handle.height-handle.acty())
 		for i := 0; i < by; i++ {
 			handle.Write("\n")
 		}
-		handle.moveby_raw(handle.cx, -(handle.height-handle.cy)-by)
+		handle.moveby_raw(handle.cx, -(handle.height-handle.acty())-by)
 		handle.height += by
 	}
 }
@@ -87,7 +92,7 @@ func (handle *THandle) MoveBy(x, y int) {
 	handle.cx += x
 	handle.cy += y
 
-	dy := limit(handle.cy, handle.limit) - limit(handle.cy-y, handle.limit)
+	dy := handle.act(handle.cy) - handle.act(handle.cy-y)
 
 	handle.moveby_raw(x, dy)
 }
@@ -97,7 +102,7 @@ func (handle *THandle) MoveTo(x, y int) {
 }
 
 func (handle *THandle) PutLine(line string) {
-	if handle.cy < handle.limit && handle.cy >= 0 {
+	if handle.cy < handle.limit && handle.cy >= handle.lock {
 		handle.Writef("\x1b7%s\x1b8", line)
 	}
 }
@@ -117,6 +122,15 @@ func (handle *THandle) HideCursor() {
 
 func (handle *THandle) ShowCursor() {
 	handle.Write("\x1b[?25h")
+}
+
+func (handle *THandle) LockOffset(offset int) {
+	handle.lock = handle.cy
+	handle.MoveBy(0, offset)
+}
+
+func (handle *THandle) Unlock() {
+	handle.lock = 0
 }
 
 func (handle *THandle) Close(exmsg string) {

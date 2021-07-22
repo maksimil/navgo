@@ -11,6 +11,7 @@ import (
 type UIState struct {
 	tree     PathTree
 	selected []int
+	scroll   int
 }
 
 func modulo(a, b int) int {
@@ -49,6 +50,7 @@ func main() {
 			b := make([]byte, 1)
 			os.Stdin.Read(b)
 			c := b[0]
+			// fmt.Fprintf(os.Stderr, "%d\n", c)
 			switch {
 			case c == 3:
 				closechan <- func() {
@@ -101,21 +103,40 @@ func main() {
 						return false
 					}
 				}
+			// d
+			case c == 100:
+				uistatechan <- func(u *UIState) bool {
+					if u.scroll > 0 {
+						u.scroll -= 1
+						return true
+					} else {
+						return false
+					}
+				}
+			// f
+			case c == 102:
+				uistatechan <- func(u *UIState) bool {
+					u.scroll += 1
+					return true
+				}
 			}
 		}
 	}()
 
 	// ui drawing goroutine
 	go func() {
-		uistate := UIState{PathTree{dir, PathTreeClosed, []PathTreePart{}}, []int{}}
+		uistate := UIState{PathTree{dir, PathTreeClosed, []PathTreePart{}}, []int{}, 0}
 		for mutator := range uistatechan {
 			if mutator(&uistate) {
 				// drawing
 				th.Bufferize(func(handle *dterm.THandle) {
 					handle.Clear()
-					handle.PutLinef("\x1b[33m%s\x1b[0m", uistate.tree.path)
+					handle.PutLinef("\x1b[43;30m%d\x1b[0m \x1b[33m%s\x1b[0m",
+						uistate.scroll, uistate.tree.path)
 					handle.MoveBy(0, 1)
+					handle.LockOffset(-uistate.scroll)
 					uistate.tree.Draw(handle, uistate.selected)
+					handle.Unlock()
 				})
 			}
 		}
