@@ -3,3 +3,6 @@ run:
 
 build:
 	go build -ldflags "-s -w" ./cmd/navgo
+
+install:
+	go install ./cmd/navgo
