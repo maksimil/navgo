@@ -97,7 +97,12 @@ func main() {
 			case c == 108:
 				uistatechan <- func(u *UIState) bool {
 					if u.tree.Get(u.selected).Open() {
-						u.selected = append(u.selected, 0)
+						switch part := u.tree.Get(u.selected).(type) {
+						case *PathTree:
+							if len(part.children) > 0 {
+								u.selected = append(u.selected, 0)
+							}
+						}
 						return true
 					} else {
 						return false
@@ -132,7 +137,11 @@ func main() {
 	go func() {
 		uistate := UIState{PathTree{dir, PathTreeClosed, []PathTreePart{}}, []int{}, 0}
 		for mutator := range uistatechan {
-			if mutator(&uistate) {
+			muted := mutator(&uistate)
+			for len(uistatechan) > 0 {
+				muted = (<-uistatechan)(&uistate) || muted
+			}
+			if muted {
 				// drawing
 				th.Bufferize(func(handle *dterm.THandle) {
 					handle.Clear()

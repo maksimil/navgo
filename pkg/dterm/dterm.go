@@ -130,6 +130,9 @@ func (handle *THandle) LockOffset(offset int) {
 }
 
 func (handle *THandle) Unlock() {
+	if handle.cy < handle.lock {
+		handle.MoveTo(handle.cx, handle.lock)
+	}
 	handle.lock = 0
 }
 
