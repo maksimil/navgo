@@ -8,17 +8,16 @@ import (
 	"golang.org/x/term"
 )
 
-type UITreeState struct {
-	tree     PathTree
-	selected []int
-	scroll   int
-}
-
 type UIState interface {
-	isUIState()
+	Call(c byte) (bool, UIState)
+	Draw(target *dterm.THandle)
 }
 
-func (state *UITreeState) isUIState() {}
+// h j k l d f i
+var KEYS = map[byte]interface{}{
+	104: 0, 106: 0, 107: 0, 108: 0,
+	100: 0, 102: 0, 105: 0,
+}
 
 func modulo(a, b int) int {
 	return ((a % b) + b) % b
@@ -46,9 +45,7 @@ func main() {
 	th.HideCursor()
 
 	closechan := make(chan func())
-	uistatechan := make(chan func(UIState) (bool, UIState), 16)
-
-	uistatechan <- func(u UIState) (bool, UIState) { return true, u }
+	uistatechan := make(chan byte, 16)
 
 	// raw user input goroutine
 	go func() {
@@ -63,149 +60,37 @@ func main() {
 				}
 				close(closechan)
 			}
-			switch {
-			// h
-			case c == 104:
-				uistatechan <- func(u UIState) (bool, UIState) {
-					switch u := u.(type) {
-					case *UITreeState:
-						if len(u.selected) > 0 {
-							u.selected = u.selected[:len(u.selected)-1]
-							return true, u
-						} else {
-							return false, u
-						}
-					default:
-						return false, u
-					}
-				}
-			// j
-			case c == 106:
-				uistatechan <- func(u UIState) (bool, UIState) {
-					switch u := u.(type) {
-					case *UITreeState:
-						if len(u.selected) == 0 {
-							return false, u
-						} else {
-							u.selected[len(u.selected)-1] += 1
-							u.selected[len(u.selected)-1] = modulo(u.selected[len(u.selected)-1],
-								len(
-									u.tree.Get(u.selected[:len(u.selected)-1]).(*PathTree).children))
-							return true, u
-						}
-					default:
-						return false, u
-					}
-				}
-			// k
-			case c == 107:
-				uistatechan <- func(u UIState) (bool, UIState) {
-					switch u := u.(type) {
-					case *UITreeState:
-						if len(u.selected) == 0 {
-							return false, u
-						} else {
-							u.selected[len(u.selected)-1] -= 1
-							u.selected[len(u.selected)-1] = modulo(u.selected[len(u.selected)-1],
-								len(
-									u.tree.Get(u.selected[:len(u.selected)-1]).(*PathTree).children))
-							return true, u
-						}
-					default:
-						return false, u
-					}
-				}
-			// l
-			case c == 108:
-				uistatechan <- func(u UIState) (bool, UIState) {
-					switch u := u.(type) {
-					case *UITreeState:
-						if u.tree.Get(u.selected).Open() {
-							switch part := u.tree.Get(u.selected).(type) {
-							case *PathTree:
-								if len(part.children) > 0 {
-									u.selected = append(u.selected, 0)
-								}
-							}
-							return true, u
-						} else {
-							return false, u
-						}
-					default:
-						return false, u
-					}
-				}
-			// d
-			case c == 100:
-				uistatechan <- func(u UIState) (bool, UIState) {
-					switch u := u.(type) {
-					case *UITreeState:
-						if u.scroll > 0 {
-							u.scroll -= 1
-							return true, u
-						} else {
-							return false, u
-						}
-					default:
-						return false, u
-					}
-				}
-			// f
-			case c == 102:
-				uistatechan <- func(u UIState) (bool, UIState) {
-					switch u := u.(type) {
-					case *UITreeState:
-						u.scroll += 1
-						return true, u
-					default:
-						return false, u
-					}
-				}
-			// i
-			case c == 105:
-				uistatechan <- func(u UIState) (bool, UIState) {
-					switch u := u.(type) {
-					case *UITreeState:
-						closed := u.tree.Get(u.selected).Close()
-						return closed, u
-					default:
-						return false, u
-					}
-				}
+			_, includes := KEYS[c]
+			if includes {
+				uistatechan <- c
 			}
 		}
 	}()
 
 	// ui drawing goroutine
 	go func() {
+		// initial state
 		uistate := UIState(new(UITreeState))
 		switch state := uistate.(type) {
 		case *UITreeState:
 			state.tree.path = dir
 			state.tree.state = PathTreeClosed
-
 		}
-		for mutator := range uistatechan {
-			muted, uistate := mutator(uistate)
+		// initial draw
+		uistate.Draw(&th)
+		// loop
+		for c := range uistatechan {
+			// mutating
+			var muted bool
+			muted, uistate = uistate.Call(c)
 			for len(uistatechan) > 0 {
 				var m bool
-				m, uistate = (<-uistatechan)(uistate)
+				m, uistate = uistate.Call(<-uistatechan)
 				muted = m || muted
 			}
+			// drawing
 			if muted {
-				// drawing
-				th.Bufferize(func(handle *dterm.THandle) {
-					switch state := uistate.(type) {
-					case *UITreeState:
-						handle.Clear()
-						handle.PutLinef("\x1b[43;30m%d\x1b[0m \x1b[33m%s\x1b[0m",
-							state.scroll, state.tree.path)
-						handle.MoveBy(0, 1)
-						handle.LockOffset(-state.scroll)
-						state.tree.Draw(handle, state.selected)
-						handle.Unlock()
-					}
-				})
+				uistate.Draw(&th)
 			}
 		}
 	}()
