@@ -60,31 +60,36 @@ func (part *PathTree) Draw(target *dterm.THandle, highlight []int) {
 		target.PutLinef("%s \x1b[31m- Error\x1b[0m", dname)
 		target.MoveBy(0, 1)
 	case PathTreeOpen:
-		target.PutLinef("%s", dname)
-		target.MoveBy(0, 1)
-		for i, cpart := range part.children {
-			if i+1 == len(part.children) {
-				target.PutLine("\u2514\u2500 ")
-			} else {
-				target.PutLine("\u251C\u2500 ")
-			}
-			target.MoveBy(3, 0)
-			x, y := target.Cpos()
-			if len(highlight) == 0 || i != highlight[0] {
-				cpart.Draw(target, []int{-1})
-			} else {
-				cpart.Draw(target, highlight[1:])
-			}
-			_, y1 := target.Cpos()
-			if i+1 != len(part.children) {
-				target.MoveTo(x-3, y+1)
-				for j := 0; j < y1-y-1; j++ {
-					target.PutLine("\u2502")
-					target.MoveBy(0, 1)
+		if len(part.children) > 0 {
+			target.PutLinef("%s", dname)
+			target.MoveBy(0, 1)
+			for i, cpart := range part.children {
+				if i+1 == len(part.children) {
+					target.PutLine("\u2514\u2500 ")
+				} else {
+					target.PutLine("\u251C\u2500 ")
 				}
-			} else {
-				target.MoveBy(-3, 0)
+				target.MoveBy(3, 0)
+				x, y := target.Cpos()
+				if len(highlight) == 0 || i != highlight[0] {
+					cpart.Draw(target, []int{-1})
+				} else {
+					cpart.Draw(target, highlight[1:])
+				}
+				_, y1 := target.Cpos()
+				if i+1 != len(part.children) {
+					target.MoveTo(x-3, y+1)
+					for j := 0; j < y1-y-1; j++ {
+						target.PutLine("\u2502")
+						target.MoveBy(0, 1)
+					}
+				} else {
+					target.MoveBy(-3, 0)
+				}
 			}
+		} else {
+			target.PutLinef("%s/", dname)
+			target.MoveBy(0, 1)
 		}
 	}
 }
