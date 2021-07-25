@@ -8,11 +8,6 @@ import (
 	"golang.org/x/term"
 )
 
-type UIState interface {
-	Call(c byte) (bool, UIState)
-	Draw(target *dterm.THandle)
-}
-
 // h j k l d f i
 var KEYS = map[byte]interface{}{
 	104: 0, 106: 0, 107: 0, 108: 0,
